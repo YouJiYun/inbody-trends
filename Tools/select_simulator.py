@@ -5,6 +5,10 @@ import subprocess
 import uuid
 from pathlib import Path
 
+def validated_udid(value):
+    uuid.UUID(value)
+    return value
+
 def choose_device(devices, runtimes):
     versions = {}
     for runtime in runtimes.get("runtimes", []):
@@ -22,7 +26,7 @@ def choose_device(devices, runtimes):
         for entry in entries:
             if not entry.get("isAvailable") or not entry.get("name", "").startswith("iPhone"):
                 continue
-            udid = str(uuid.UUID(entry["udid"]))
+            udid = validated_udid(entry["udid"])
             candidates.append((versions[runtime], entry.get("state") == "Booted", entry["name"], udid, entry))
     if not candidates:
         raise RuntimeError("No available iPhone simulator with an installed iOS 17+ runtime.")
@@ -40,7 +44,7 @@ def main():
     devices = json.loads(simctl("list", "devices", "available", "--json"))
     runtimes = json.loads(simctl("list", "runtimes", "--json"))
     device, version = choose_device(devices, runtimes)
-    udid = str(uuid.UUID(device["udid"]))
+    udid = validated_udid(device["udid"])
     if args.boot:
         if device.get("state") != "Booted":
             simctl("boot", udid)

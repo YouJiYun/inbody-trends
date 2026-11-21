@@ -1,8 +1,13 @@
 import unittest
-from select_simulator import choose_device
+from select_simulator import choose_device, validated_udid
 from check_xcresult import REQUIRED, require_native_tests
 
 class CIToolTests(unittest.TestCase):
+    def test_preserves_simctl_udid_casing_for_xcode_destination(self):
+        value = "ABCDEFAB-1234-4000-8000-ABCDEF123456"
+        self.assertEqual(validated_udid(value), value)
+        with self.assertRaises(ValueError):
+            validated_udid("not-a-device-identifier")
     def test_selects_available_iphone_and_latest_installed_runtime(self):
         old = "com.apple.CoreSimulator.SimRuntime.iOS-16-4"
         current = "com.apple.CoreSimulator.SimRuntime.iOS-18-5"
