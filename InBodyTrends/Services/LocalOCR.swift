@@ -53,7 +53,12 @@ enum LocalOCR {
                 lines.append(line)
                 for label in labels {
                     if let range = text.string.range(of: label), let location = try text.boundingBox(for: range) {
-                        lines.append(box(label, confidence: text.confidence, rect: location.boundingBox))
+                        var confidence = text.confidence
+                        if label.hasPrefix("InBody"), confidence < 0.8,
+                           let verified = try verifyMixedHeading(text, range: range, label: label, image: input) {
+                            confidence = verified
+                        }
+                        lines.append(box(label, confidence: confidence, rect: location.boundingBox))
                     }
                 }
                 for (expression, isDate) in [(dateRegex, true), (timeRegex, false)] {
@@ -113,6 +118,36 @@ enum LocalOCR {
     private static func box(_ text: String, confidence: Float, rect: CGRect) -> TextBox {
         TextBox(text: text, confidence: Double(confidence), x: Double(rect.minX),
                 y: Double(1 - rect.maxY), width: Double(rect.width), height: Double(rect.height))
+    }
+    private static func verifyMixedHeading(_ text: VNRecognizedText, range: Range<String.Index>,
+                                           label: String, image: CGImage) throws -> Float? {
+        let suffix = label.contains("得分") ? "得分" : "评分"
+        let parts = [("InBody", "en-US"), (suffix, "zh-Hans")]
+        var requests: [VNRecognizeTextRequest] = []
+        for (part, language) in parts {
+            guard let partRange = text.string.range(of: part, range: range),
+                  let location = try text.boundingBox(for: partRange) else { return nil }
+            let request = VNRecognizeTextRequest()
+            request.recognitionLevel = .accurate
+            request.recognitionLanguages = [language]
+            request.usesLanguageCorrection = false
+            request.minimumTextHeight = 0.003
+            request.regionOfInterest = location.boundingBox.insetBy(dx: -0.003, dy: -0.003)
+                .intersection(CGRect(x: 0, y: 0, width: 1, height: 1))
+            requests.append(request)
+        }
+        try VNImageRequestHandler(cgImage: image, options: [:]).perform(requests)
+        var confidences: [Float] = []
+        for (request, part) in zip(requests, parts) {
+            let words = (request.results ?? []).sorted { $0.boundingBox.minX < $1.boundingBox.minX }
+                .compactMap { $0.topCandidates(1).first }
+            guard !words.isEmpty,
+                  words.allSatisfy({ $0.confidence >= 0.8 }),
+                  words.map(\.string).joined().replacingOccurrences(of: " ", with: "") == part.0 else { return nil }
+            confidences.append(contentsOf: words.map(\.confidence))
+        }
+        // Confidence comes from both independently recognized image regions, never from agreement alone.
+        return confidences.min()
     }
     private static func unit(in text: String) -> String? {
         let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
