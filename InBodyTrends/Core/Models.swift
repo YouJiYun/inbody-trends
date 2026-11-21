@@ -35,23 +35,32 @@ struct MetricDefinition: Identifiable, Hashable {
         ("leftArm", "左上肢"), ("rightArm", "右上肢"), ("trunk", "躯干"),
         ("leftLeg", "左下肢"), ("rightLeg", "右下肢")
     ]
-    static let all: [MetricDefinition] = basic + limbs.flatMap { limb in
-        ["lean", "fat"].flatMap { kind in
-            ["kg", "percent"].map { unit in
-                MetricDefinition(id: "\(kind).\(limb.0).\(unit)",
-                                 name: "\(limb.1)\(kind == "lean" ? "肌肉" : "脂肪")\(unit == "percent" ? "比例" : "")",
-                                 unit: unit == "kg" ? "kg" : "%",
-                                 category: kind == "lean" ? "分段肌肉" : "分段脂肪",
-                                 range: unit == "kg" ? 0...100 : 1...900,
-                                 decimals: 1,
-                                 explanation: unit == "kg" ? "报告中该部位的估计重量。" : "相对设备参考值的比例，不是体脂率。")
+    static let all: [MetricDefinition] = {
+        var definitions = basic
+        for limb in limbs {
+            for kind in ["lean", "fat"] {
+                let segmentName = kind == "lean" ? "肌肉" : "脂肪"
+                let category = kind == "lean" ? "分段肌肉" : "分段脂肪"
+                for unit in ["kg", "percent"] {
+                    let isMass = unit == "kg"
+                    let range: ClosedRange<Double> = isMass ? 0...100 : 1...900
+                    let name = limb.1 + segmentName + (isMass ? "" : "比例")
+                    let explanation = isMass ? "报告中该部位的估计重量。" : "相对设备参考值的比例，不是体脂率。"
+                    definitions.append(MetricDefinition(
+                        id: "\(kind).\(limb.0).\(unit)", name: name,
+                        unit: isMass ? "kg" : "%", category: category,
+                        range: range, decimals: 1, explanation: explanation))
+                }
             }
-        } + [20, 100].map { frequency in
-            MetricDefinition(id: "z.\(frequency).\(limb.0)", name: "\(limb.1) · \(frequency) kHz",
-                             unit: "Ω", category: "生物电阻抗", range: 1...2000, decimals: 1,
-                             explanation: "该频率下测得的电阻抗；仅用于追溯，不用于自行诊断。")
+            for frequency in [20, 100] {
+                definitions.append(MetricDefinition(
+                    id: "z.\(frequency).\(limb.0)", name: "\(limb.1) · \(frequency) kHz",
+                    unit: "Ω", category: "生物电阻抗", range: 1...2000, decimals: 1,
+                    explanation: "该频率下测得的电阻抗；仅用于追溯，不用于自行诊断。"))
+            }
         }
-    }
+        return definitions
+    }()
     static func find(_ id: String) -> MetricDefinition? { all.first { $0.id == id } }
     func format(_ value: Double) -> String {
         String(format: "%.\(decimals)f", locale: Locale(identifier: "en_US_POSIX"), value)
