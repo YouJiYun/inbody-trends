@@ -2,7 +2,7 @@
 
 SwiftUI iOS 17+ 原生工程：拍摄或相册导入中文 InBody270 类报告，在设备内执行 Apple Vision OCR，空间解析及一致性校验后自动保存，查看各个实际识别指标的历史趋势。无账户、付费 API、云识别、后台服务或手填入口。
 
-**开发状态：尚未完成 Xcode 编译与原生运行验证。源码、合成测试和 CI 配置不是测试已通过的证明。**
+**已完成标准 macOS Actions 上的真实 iOS 模拟器构建和 XCTest：七个核心测试及四个合成图片 Apple Vision 测试通过，结果守卫确认没有跳过。** [查看实际运行](https://github.com/YouJiYun/inbody-trends/actions/workflows/ios-validation.yml)。这不代表真实个人报告或真机已验收。
 
 ## 本地运行
 
@@ -29,7 +29,7 @@ CI 顺序：
 
 [GitHub 官方计费说明](https://docs.github.com/en/billing/concepts/product-billing/github-actions)说明：公开仓库的标准 GitHub-hosted runner 不消耗私人 included compute；larger runner 即使公开仓库也收费。这不代表用户账户余额已检查，也不涵盖任何将来启用的额外存储/付费服务。
 
-**本轮仅本地准备，未创建远端、push、上传或运行此 workflow。须先授权公开，再授权运行 CI，才能获得真正原生结果；失败后仍需根据实际日志修复。**
+已在用户批准的独立公开候选范围内发布并运行 CI。所有云端输入均独立合成，真实照片、健康资料、私有标注及旧 ZIP 不在公开源码或历史中。
 
 ## 开发测试
 
