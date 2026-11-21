@@ -42,21 +42,21 @@ final class SyntheticVisionTests: XCTestCase {
         let document = try await LocalOCR.recognize(image("missing-date"))
         XCTAssertFalse(document.lines.isEmpty)
         XCTAssertThrowsError(try ReportParser(document: document).parse(sourceID: UUID())) { error in
-            XCTAssertTrue(error.localizedDescription.contains("日期"))
+            XCTAssertTrue(error.localizedDescription.contains("日期"), error.localizedDescription)
         }
     }
     func testMissingMuscleImageIsRejectedAfterRealVision() async throws {
         let document = try await LocalOCR.recognize(image("missing-muscle"))
         XCTAssertFalse(document.lines.isEmpty)
         XCTAssertThrowsError(try ReportParser(document: document).parse(sourceID: UUID())) { error in
-            XCTAssertTrue(error.localizedDescription.contains("条形图"))
+            XCTAssertTrue(error.localizedDescription.contains("条形图"), error.localizedDescription)
         }
     }
     func testContradictoryImageIsRejectedAfterRealVision() async throws {
         let document = try await LocalOCR.recognize(image("conflicting-weight"))
         XCTAssertFalse(document.lines.isEmpty)
         XCTAssertThrowsError(try ReportParser(document: document).parse(sourceID: UUID())) { error in
-            XCTAssertTrue(error.localizedDescription.contains("矛盾"))
+            XCTAssertTrue(error.localizedDescription.contains("矛盾"), error.localizedDescription)
         }
     }
 }

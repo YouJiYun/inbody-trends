@@ -107,7 +107,7 @@ func generate(_ variant: Variant) throws {
 
     title("InBody 评分", 0.68, 0.20)
     text("79", 0.73, 0.245, size: 68, bold: true)
-    text("/100 分", 0.795, 0.262, size: 24)
+    text("/100 分", 0.86, 0.28, size: 24)
     title("体重控制", 0.68, 0.31)
     for (index, pair) in [("目标体重", "73.0 kg"), ("体重控制", "-1.8 kg"),
                           ("脂肪控制", "-1.8 kg"), ("肌肉控制", "0.0 kg")].enumerated() {

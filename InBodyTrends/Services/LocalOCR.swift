@@ -16,14 +16,19 @@ enum LocalOCR {
             guard let input = context.createCGImage(corrected, from: corrected.extent) else {
                 throw RecordError.recognition("图片透视校正失败")
             }
-            let request = VNRecognizeTextRequest()
-            request.recognitionLevel = .accurate
-            request.recognitionLanguages = ["zh-Hans", "en-US"]
-            request.usesLanguageCorrection = false
-            request.minimumTextHeight = 0.003
-            request.customWords = ["InBody", "骨骼肌", "体脂肪", "无机盐", "腰臀比", "SMI", "kcal", "kHz"]
-            try VNImageRequestHandler(cgImage: input, options: [:]).perform([request])
-            guard let observations = request.results, !observations.isEmpty else {
+            // Language priority affects confidence for dates and mixed Chinese/Latin headings.
+            let requests = [["zh-Hans", "en-US"], ["en-US", "zh-Hans"]].map { languages in
+                let request = VNRecognizeTextRequest()
+                request.recognitionLevel = .accurate
+                request.recognitionLanguages = languages
+                request.usesLanguageCorrection = false
+                request.minimumTextHeight = 0.003
+                request.customWords = ["InBody", "骨骼肌", "体脂肪", "无机盐", "腰臀比", "SMI", "kcal", "kHz"]
+                return request
+            }
+            try VNImageRequestHandler(cgImage: input, options: [:]).perform(requests)
+            let observations = requests.flatMap { $0.results ?? [] }
+            guard !observations.isEmpty else {
                 throw RecordError.recognition("未识别到文字")
             }
             let regex = try NSRegularExpression(pattern: #"(?<![\d.])[+\-−]?\d+(?:\.\d+)?(?![\d.])"#)
@@ -85,7 +90,24 @@ enum LocalOCR {
                 return NumberBox(text: number.text, value: number.value, box: number.box,
                                  reference: number.reference, unit: inferred)
             }
-            return OCRDocument(lines: lines, numbers: withUnits, dates: dates, times: times)
+            var uniqueNumbers: [NumberBox] = []
+            for number in withUnits {
+                let index = uniqueNumbers.firstIndex { existing in
+                    existing.value == number.value && existing.reference == number.reference &&
+                    existing.unit == number.unit &&
+                    abs(existing.box.midX - number.box.midX) < max(existing.box.width, number.box.width) * 0.35 &&
+                    abs(existing.box.midY - number.box.midY) < max(existing.box.height, number.box.height) * 0.5
+                }
+                if let index {
+                    if number.box.confidence > uniqueNumbers[index].box.confidence {
+                        uniqueNumbers[index] = number
+                    }
+                } else {
+                    uniqueNumbers.append(number)
+                }
+            }
+            // Preserve disagreeing readings so the parser rejects ambiguity rather than choosing a value.
+            return OCRDocument(lines: lines, numbers: uniqueNumbers, dates: dates, times: times)
         }.value
     }
     private static func box(_ text: String, confidence: Float, rect: CGRect) -> TextBox {
