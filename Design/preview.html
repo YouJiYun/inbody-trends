@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>身体记录 · 原生 iOS 视觉预览</title>
+<style>
+:root{color-scheme:light dark;--bg:#f7f8f5;--card:#fff;--ink:#192e2a;--muted:#71827c;--teal:#168574;--line:#e9efeb}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{max-width:1080px;margin:36px auto 24px;padding:0 24px}h1{font-size:30px;letter-spacing:-1px;margin:10px 0}p{color:var(--muted);line-height:1.7}
+.badge{font-size:12px;background:#dfefe9;color:#147564;padding:6px 12px;border-radius:20px}
+main{display:flex;gap:28px;align-items:flex-start;max-width:1080px;margin:auto;padding:0 24px 48px;flex-wrap:wrap}
+.phone{width:328px;min-height:676px;border:7px solid #243630;border-radius:44px;background:var(--bg);overflow:hidden;box-shadow:0 18px 45px #19392a12;position:relative}
+.status{display:flex;justify-content:space-between;font-size:12px;padding:15px 21px;font-weight:700}
+.screen{padding:15px 18px 80px}.eyebrow{font-size:12px;color:var(--muted)}h2{font-size:28px;margin:7px 0 21px;letter-spacing:-1px}h3{font-size:15px;margin:0 0 12px}
+.card{padding:18px;border:1px solid var(--line);background:var(--card);border-radius:21px;margin-bottom:14px}
+.hero{background:var(--teal);color:white;border:0}.hero .eyebrow,.hero p{color:#c8e8df}.number{font-size:44px;letter-spacing:-2px;font-weight:650}
+.unit{font-size:14px;font-weight:400;letter-spacing:0}.row{display:flex;justify-content:space-between;align-items:center}.mini{display:flex;gap:12px}
+.mini .card{flex:1;padding:15px}.mini strong{font-size:27px}.delta{color:var(--teal);font-size:12px;margin-top:9px}.hero .delta{color:#dbf2e9}
+.button{display:block;width:100%;border:0;border-radius:16px;padding:15px;background:var(--teal);color:white;font:600 15px inherit;cursor:pointer;text-align:center}
+.secondary{background:#e4efe9;color:var(--teal);margin-top:10px}.tabs{position:absolute;bottom:0;display:flex;justify-content:space-around;background:var(--card);border-top:1px solid var(--line);width:100%;padding:13px 0 24px;font-size:10px;color:var(--muted)}
+.tabs span{display:block;text-align:center}.tabs b{font-size:21px;display:block;margin-bottom:4px;font-weight:400}.active{color:var(--teal)}
+.capture{height:265px;background:#e4e9e3;border:1px solid #d2ddd4;border-radius:20px;padding:25px;position:relative;display:grid;place-items:center}
+.paper{width:150px;height:207px;background:white;box-shadow:0 5px 15px #0001;border-radius:3px;padding:16px;transform:rotate(-4deg);color:#41594d}
+.paper strong{font-size:20px}.rule{height:4px;background:#d7e4dd;margin-top:12px}.rule:nth-child(3n){width:60%}
+.frame{position:absolute;inset:15px;border:2px dashed var(--teal);border-radius:10px}.hint{font-size:12px;text-align:center}
+.pills{display:flex;gap:6px;margin:12px 0 20px}.pills button{background:var(--card);color:var(--muted);padding:8px 13px;border:0;border-radius:10px;cursor:pointer}.pills button.selected{background:#dceee5;color:var(--teal)}
+svg{width:100%;overflow:visible}.chart-label{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}.item{padding:14px 0;border-top:1px solid var(--line)}small{color:var(--muted);font-size:11px}
+.notice{background:#eaf2e9;padding:12px;border-radius:14px;font-size:12px;color:#4b695c;line-height:1.6}
+@media(prefers-color-scheme:dark){:root{--bg:#15231f;--card:#20312b;--ink:#f0f6f1;--muted:#a7bab0;--line:#31473d}.badge,.secondary,.pills button.selected{background:#2a4a3c;color:#a3dfc4}.notice{background:#243d30;color:#b7ccbe}.capture{background:#304337}}
+@media(max-width:740px){main{justify-content:center}header{text-align:center}.phone{width:345px}}
+</style>
+<header><span class="badge">SwiftUI 设计方向 · 视觉预览</span><h1>把一张报告，变成长期看得懂的变化。</h1><p>拍照即录入 · 所有指标都有自己的时间线 · 数据留在手机<br>以下数字全部是合成演示数据，不是用户报告；此页面不运行相机或 OCR。</p></header>
+<main>
+<section class="phone"><div class="status"><span>9:41</span><span>● ▰</span></div><div class="screen">
+<div class="eyebrow">身体记录 / 概览</div><h2>看见每一点变化</h2>
+<div class="card hero"><div class="row"><span class="eyebrow">最近一次 · 10 月 18 日</span><span>◉</span></div><div class="number">65.2 <span class="unit">kg</span></div><div>体重</div><div class="delta">比上次 −0.4 kg · 变化不代表好坏</div></div>
+<div class="mini"><div class="card"><div class="eyebrow">骨骼肌</div><strong>30.8</strong> <small>kg</small><div class="delta">+0.2 kg</div></div><div class="card"><div class="eyebrow">体脂率</div><strong>18.4</strong> <small>%</small><div class="delta">−0.5 个百分点</div></div></div>
+<div class="card"><div class="row"><h3>记录，而不是评判</h3><span>↗</span></div><p style="font-size:12px;margin:0">尽量在相同时间与状态下测量。饮水、运动与设备差异都会影响结果。</p></div>
+<button class="button" onclick="document.getElementById('scan').scrollIntoView({behavior:'smooth'})">＋ 扫描新报告</button>
+<p class="hint">没有账号 · 没有云识别 · 本地保存</p></div><nav class="tabs"><span class="active"><b>◉</b>概览</span><span><b>▣</b>扫描</span><span><b>⌁</b>趋势</span><span><b>▤</b>报告</span></nav></section>
+<section class="phone" id="scan"><div class="status"><span>9:41</span><span>● ▰</span></div><div class="screen">
+<div class="eyebrow">身体记录 / 扫描</div><h2>拍下，剩下交给我们</h2>
+<div class="capture"><div class="paper"><strong>体测报告</strong><div class="rule"></div><div class="rule"></div><div class="rule"></div><div class="rule"></div><div class="rule"></div><div class="rule"></div><div class="rule"></div></div><div class="frame"></div></div>
+<p class="hint">完整入框 · 光线均匀 · 避免反光</p><button class="button" onclick="document.getElementById('state').textContent='视觉示意：真实应用将在设备上自动识别；此页面不会读取照片。'">▣ 拍摄报告</button><button class="button secondary" onclick="document.getElementById('state').textContent='视觉示意：应用使用系统照片选择器，无须访问整个相册。'">从相册导入</button>
+<p id="state" class="hint">系统扫描器可自动裁切和校正透视</p><div class="notice">识别可靠后自动保存；不清晰的照片会提示重拍，不需要手填，也不会猜数值。</div>
+</div><nav class="tabs"><span><b>◉</b>概览</span><span class="active"><b>▣</b>扫描</span><span><b>⌁</b>趋势</span><span><b>▤</b>报告</span></nav></section>
+<section class="phone"><div class="status"><span>9:41</span><span>● ▰</span></div><div class="screen">
+<div class="eyebrow">身体记录 / 趋势</div><h2>体脂率</h2><div class="pills"><button onclick="select(this)">3 个月</button><button onclick="select(this)">1 年</button><button class="selected" onclick="select(this)">全部</button></div>
+<div class="card"><div class="number">18.4 <span class="unit">%</span></div><p style="font-size:12px;margin:2px 0 25px">10 月 18 日 · 完整报告</p>
+<svg viewBox="0 0 248 125" role="img" aria-label="合成演示数据的体脂率折线图"><defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#168574" stop-opacity=".18"/><stop offset="1" stop-color="#168574" stop-opacity="0"/></linearGradient></defs><path d="M0 95H248M0 55H248M0 15H248" stroke="#bccdc0" stroke-dasharray="3 5"/><path d="M5 30L48 42L92 22L138 61L185 70L240 85V125H5Z" fill="url(#g)"/><path d="M5 30L48 42L92 22L138 61L185 70L240 85" stroke="#168574" stroke-width="3" fill="none"/><circle cx="240" cy="85" r="5" fill="#168574"/></svg><div class="chart-label"><span>5 月</span><span>7 月</span><span>10 月</span></div></div>
+<div class="row"><h3>每次测量</h3><small>轻点查看来源</small></div><div class="item row"><span>10 月 18 日<br><small>完整报告 · 演示</small></span><strong>18.4 %</strong></div><div class="item row"><span>9 月 12 日<br><small>报告内历史 · 演示</small></span><strong>18.9 %</strong></div><div class="item row"><span>8 月 14 日<br><small>完整报告 · 演示</small></span><strong>19.1 %</strong></div><div class="notice">只有实际识别到的数值进入图表；单次记录只显示一个点。</div>
+</div><nav class="tabs"><span><b>◉</b>概览</span><span><b>▣</b>扫描</span><span class="active"><b>⌁</b>趋势</span><span><b>▤</b>报告</span></nav></section>
+</main>
+<script>function select(b){b.parentNode.querySelectorAll('button').forEach(x=>x.classList.remove('selected'));b.classList.add('selected')}</script>
+</html>

@@ -1,0 +1,58 @@
+name: Native iOS validation (synthetic data only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-ios-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  simulator:
+    if: github.event.repository.private == false
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - name: Check out the approved public candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Check public source boundaries
+        run: python3 Tools/check_public_tree.py
+      - name: Generate independent synthetic Chinese report images
+        run: swift Tools/GenerateSyntheticReports.swift Tests/Resources/SyntheticFixtures
+      - name: Select and boot an available iPhone simulator
+        id: simulator
+        run: python3 Tools/select_simulator.py --boot --github-output "$GITHUB_OUTPUT"
+      - name: Build the real iOS simulator application without signing
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcodebuild \
+            -project InBodyTrends.xcodeproj \
+            -scheme InBodyTrends \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.udid }}" \
+            -derivedDataPath "$RUNNER_TEMP/InBodyDerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Run XCTest and Apple Vision against the synthetic images
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project InBodyTrends.xcodeproj \
+            -scheme InBodyTrends \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.udid }}" \
+            -derivedDataPath "$RUNNER_TEMP/InBodyDerivedData" \
+            -resultBundlePath "$RUNNER_TEMP/InBodyTests.xcresult" \
+            -parallel-testing-enabled NO \
+            -maximum-concurrent-test-simulator-destinations 1 \
+            CODE_SIGNING_ALLOWED=NO \
+            test
+      - name: Verify that the native OCR tests actually executed
+        run: python3 Tools/check_xcresult.py "$RUNNER_TEMP/InBodyTests.xcresult"
