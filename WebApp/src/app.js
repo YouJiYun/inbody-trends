@@ -4,7 +4,7 @@ import { recognize, releaseOCR } from './ocr.js';
 import { recognizeTemplate } from './template.js';
 
 const main=document.querySelector('#main'),notice=document.querySelector('#notice'),dialog=document.querySelector('#detail');
-let state={reports:[],measurements:[]},tab='home',busy=false,offlineReady=false,demo=false;
+let state={reports:[],measurements:[]},tab='home',busy=false,offlineReady=false,demo=false,offlineRegistration,reloadForUpdate=false;
 const urls=new Set();
 const esc=value=>String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const message=(text,error=false)=>{notice.textContent=text;notice.className=error?'notice error':'notice';};
@@ -33,6 +33,7 @@ function renderHome() {
     html+=`<div class="section-heading"><h2>最近一次测量</h2><span>${printDate(latest.measuredAt)}</span></div><div class="core-grid">`;
     for(const id of ['weight','muscle','pbf']) {
       const points=metricPoints(id),current=points.at(-1),previous=points.at(-2),def=definition(id);
+      if(!current)continue;
       const delta=previous?current.metrics[id].value-previous.metrics[id].value:null;
       html+=`<button class="metric-card ${id==='weight'?'featured':''}" data-metric="${id}"><span class="metric-label">${def.name} <span>↗</span></span>
         <div class="metric-value">${formatValue(id,current.metrics[id].value)}<small>${def.unit}</small></div>
@@ -48,13 +49,13 @@ function renderHome() {
   main.innerHTML=html;
 }
 function renderScan() {
-  main.innerHTML=intro('SCAN WITHOUT TYPING','一张照片，自动记录','只有清晰、完整且一致的核心数据才会进入趋势。')+
+  main.innerHTML=intro('SCAN WITHOUT TYPING','一张照片，自动记录','可靠日期下，只保存经过复核的指标；缺失或冲突的值不进入趋势。')+
     `<section class="hero scan-hero"><div class="viewfinder"><span></span><div class="paper"><i></i><i></i><i></i><i></i><b>↗</b></div></div>
       <h2>对准整张报告</h2><p>铺平报告，避免阴影、反光和裁切。<br>日期、正文和底部历史都要保留。</p>
       <button class="primary" data-action="camera" ${busy?'disabled':''}>拍摄报告</button><button class="secondary" data-action="photo" ${busy?'disabled':''}>从相册选择</button>
       <div id="scan-progress" data-state="idle" role="status"></div></section>
     <section class="tip"><span>◉</span><div><h3>图片不会离开设备</h3><p>首次需要下载中文/英文模型和离线资源，约几十 MB。下载完成后可离线识别；复杂报告可能需要较长时间，请保持页面打开。</p></div></section>
-    <p class="footnote">识别不确定会保存为「待识别」，提示重拍，不会猜值或要求你手填。当前主要支持中文 InBody 类布局；不同机型与模糊照片可能无法可靠识别。</p>`;
+    <p class="footnote">可保存独立核实的部分指标，并明确标记缺失。日期不可靠时仅保留原图；可在「报告」使用原图重新识别，不需手填。</p>`;
 }
 function renderTrends() {
   const available=definitions.filter(def=>metricPoints(def.id).length);
@@ -73,7 +74,7 @@ function renderReports() {
     (!state.reports.length?'<section class="empty"><h2>报告库是空的</h2><p>真实照片不会在演示中自动预载。</p></section>':
       [...state.reports].sort((a,b)=>b.importedAt-a.importedAt).map(report=>`<button class="report-card" data-report="${esc(report.id)}"><span class="report-icon">▤</span><div>
         <strong>${report.measuredAt===null?'待识别报告':printDate(report.measuredAt)}</strong>
-        <small>${report.status==='saved'?'已保存 · 可查看原图与识别范围':'待识别 · 未进入趋势'}</small></div><span class="status-tag ${report.status}">${report.status==='saved'?'已记录':'需重拍'}</span></button>`).join(''))+
+        <small>${report.status==='saved'?'已保存 · 可查看原图与识别范围':report.status==='partial'?'部分保存 · 仅可信指标进入趋势':'待识别 · 原图保留，可重新识别'}</small></div><span class="status-tag ${report.status}">${report.status==='saved'?'已记录':report.status==='partial'?'部分保存':'待识别'}</span></button>`).join(''))+
     '<section class="backup-reminder"><strong>卸载或清理数据前，先导出备份</strong><p>浏览器存储不是永久保险箱。请定期保存到私密位置。</p><button class="text-button" data-action="export">导出备份 →</button></section>';
 }
 function render() {
@@ -88,6 +89,7 @@ function showSettings() {
     <button class="primary" data-action="export">导出备份文件</button><button class="secondary" data-action="restore">从文件合并恢复</button>
     <p class="warning">备份包含健康资料与原图，未加密。请放在「文件」或 iCloud Drive 的私密位置，不要公开分享。</p>
     <button class="secondary" data-action="persist">申请持久存储</button><p id="persist-status" class="footnote">浏览器可以拒绝申请；即使获准也不能保证永不丢失。</p>
+    <button class="secondary" data-action="update">检查并加载应用更新</button><p class="footnote">更新只替换应用资源，不删除照片和记录。正在识别时不能加载更新。</p>
     <button class="danger" data-action="erase" ${demo?'disabled':''}>删除全部本地数据</button>
     <h3>添加到 iPhone 主屏幕</h3><p>正式 HTTPS 网页发布后，用 Safari 打开，点「分享」→「添加到主屏幕」。当前本地电脑预览不能替代 iPhone Safari 真机验收。</p>`;
   dialog.showModal();
@@ -100,22 +102,24 @@ function showMetric(id,months=0) {
     <div class="detail-value">${formatValue(id,all.at(-1).metrics[id].value)} <small>${def.unit}</small></div>
     <div class="range-tabs">${[[1,'1 个月'],[3,'3 个月'],[12,'1 年'],[0,'全部']].map(([value,label])=>`<button data-range="${value}" data-for="${esc(id)}" class="${value===months?'selected':''}">${label}</button>`).join('')}</div>
     ${chart(points,id,true)}<p class="footnote">${points.length===1?'仅一次测量，不能判断趋势。':'点击下方单次记录查看来源。'} 时间窗口以最新测量为基准。</p>
-    ${[...points].reverse().map(point=>`<button class="point-row" data-point="${esc(point.id)}"><span>${printDate(point.measuredAt)}<small>${point.kind==='history'?'报告底部历史摘要':'完整报告'}</small></span><strong>${formatValue(id,point.metrics[id].value)} ${def.unit}</strong></button>`).join('')}
+    ${[...points].reverse().map(point=>`<button class="point-row" data-point="${esc(point.id)}"><span>${printDate(point.measuredAt)}<small>${point.kind==='history'?'报告底部历史摘要':point.kind==='partial'?'部分指标 · 独立复核':'核心完整报告'}</small></span><strong>${formatValue(id,point.metrics[id].value)} ${def.unit}</strong></button>`).join('')}
     <p class="footnote">${id==='pbf'?'体脂率变化使用百分点；分段比例不是体脂率。':'指标是设备估计值，不提供诊断或饮食处方。'}</p>`;
   if(!dialog.open)dialog.showModal();
 }
 function showReport(id) {
   const report=state.reports.find(item=>item.id===id);if(!report)return;
   const url=URL.createObjectURL(report.image);urls.add(url);
-  document.querySelector('#detail-content').innerHTML=`<div class="eyebrow">${report.status==='saved'?'报告来源':'待识别，不进入趋势'}</div>
-    <h2>${report.measuredAt===null?'需要更清晰的照片':printDate(report.measuredAt)}</h2><img class="source-photo" src="${url}" alt="仅本机保存的报告原图">
+  document.querySelector('#detail-content').innerHTML=`<div class="eyebrow">${report.status==='saved'?'报告来源':report.status==='partial'?'部分保存 · 缺失和冲突未入库':'待识别 · 原图保留'}</div>
+    <h2>${report.measuredAt===null?'报告待识别':printDate(report.measuredAt)}</h2><img class="source-photo" src="${url}" alt="仅本机保存的报告原图">
+    <p>${report.status==='partial'?'已保存独立核实的指标，其他值仍缺失。':report.status==='pending'?'尚未满足日期或指标复核要求，原图仍在本机。':'已保存可信记录。'}使用下方按钮更新识别，不需重拍或清理网站数据。</p>
     <h3>识别范围与质量</h3><ul>${report.issues.map(issue=>`<li>${esc(issue)}</li>`).join('')||'<li>核心一致性检查通过</li>'}</ul>
-    <p class="footnote">未识别项目不填零。${report.status==='pending'?'已有候选值也不等于完整识别成功，请重拍后再导入。':''}</p>
+    <p class="footnote">未识别项目不填零。可信冲突不会覆盖原记录；再次识别不会重复新增这张图。</p>
+    <button class="primary" data-retry="${esc(id)}" ${busy?'disabled':''}>使用已存原图重新识别</button>
     <button class="secondary" data-action="photo">重新选图</button><button class="danger" data-delete="${esc(id)}">删除此报告及仅由它提供的记录</button>`;
   if(!dialog.open)dialog.showModal();
 }
 async function refresh() {state=await snapshot();render();}
-async function scan(file) {
+async function scan(file,retry=false) {
   if(!file||busy)return;
   if(demo){demo=false;state=await snapshot();}
   busy=true;tab='scan';dialog.close();render();
@@ -123,7 +127,7 @@ async function scan(file) {
   progress.dataset.state='working';
   try {
     const hash=await digest(file),existing=state.reports.find(report=>report.digest===hash);
-    if(existing?.status==='saved'){message('这张照片已经保存，没有重复新增。');return;}
+    if(existing?.status==='saved'&&!retry){message('这张照片已经保存，没有重复新增。');return;}
     const sourceID=crypto.randomUUID(),started=performance.now();
     const doc=await recognize(file,({status,progress:value})=>{
       progress.textContent=`${status} · ${Math.round(value*100)}%`;
@@ -136,11 +140,12 @@ async function scan(file) {
       });
       if(template)parsed=template;
     }
-    await saveScan(file,parsed,sourceID);
+    const result=await saveScan(file,parsed,sourceID,retry);
     await refresh();tab='reports';render();
-    message(parsed.accepted?`已自动保存，识别耗时 ${Math.round((performance.now()-started)/1000)} 秒。`:
-      '已保留为待识别，未进入趋势。请查看质量问题并重拍。',!parsed.accepted);
-    document.dispatchEvent(new CustomEvent('scan-finished',{detail:{accepted:parsed.accepted}}));
+    message(result.status==='partial'?'已部分保存：仅独立核实的指标进入趋势，缺失或冲突值未保存。':
+      result.status==='saved'?`已保存可信记录，识别耗时 ${Math.round((performance.now()-started)/1000)} 秒。`:
+      '原图已保留，日期或可信指标仍不足；可在报告中使用原图重新识别。',result.status==='pending');
+    document.dispatchEvent(new CustomEvent('scan-finished',{detail:{accepted:result.status!=='pending',partial:result.status==='partial'}}));
   } catch(error) {
     message(error.message==='同一测量时间存在矛盾的完整报告，未覆盖原记录'?error.message:
       `未完成保存：${error.message}`,true);
@@ -164,6 +169,14 @@ async function downloadBackup() {
   }
 }
 const actions={
+  update:async()=>{
+    if(busy)throw new Error('正在识别，请完成后再更新应用');
+    if(!offlineRegistration)throw new Error('离线注册尚未完成，请保持联网后重试');
+    await offlineRegistration.update();
+    if(offlineRegistration.waiting){reloadForUpdate=true;offlineRegistration.waiting.postMessage('ACTIVATE');}
+    else if(offlineRegistration.installing)message('新版本资源正在下载，完成后再次点更新；照片和记录保持不变。');
+    else message('已检查更新；若界面仍为旧版，请关闭再打开，不要清理网站数据。');
+  },
   settings:showSettings,camera:()=>document.querySelector('#camera-input').click(),photo:()=>document.querySelector('#photo-input').click(),
   export:downloadBackup,restore:()=>{if(busy)throw new Error('正在识别，请完成后再恢复备份');document.querySelector('#backup-input').click();},
   persist:async()=>{
@@ -189,6 +202,11 @@ document.addEventListener('click',async event=>{
     else if(button.dataset.metric)showMetric(button.dataset.metric);
     else if(button.dataset.range)showMetric(button.dataset.for,Number(button.dataset.range));
     else if(button.dataset.report)showReport(button.dataset.report);
+    else if(button.dataset.retry) {
+      const report=state.reports.find(item=>item.id===button.dataset.retry);
+      if(!report)throw new Error('原图来源不存在，请重新打开报告列表');
+      await scan(report.image,true);
+    }
     else if(button.dataset.point) {
       const point=state.measurements.find(item=>item.id===button.dataset.point),source=point?.sourceIDs[0];
       if(source)showReport(source);else message('这是合成演示，不包含真实原图');
@@ -214,6 +232,7 @@ async function prepareOffline() {
   if(!('serviceWorker' in navigator)){message('此浏览器不支持离线准备；请使用现代 Safari/Chrome。',true);return;}
   try {
     const registration=await navigator.serviceWorker.register('./sw.js');
+    offlineRegistration=registration;
     registration.addEventListener('updatefound',()=>registration.installing?.addEventListener('statechange',()=>{
       if(registration.waiting)message('离线版本已更新，完成当前操作后关闭并重新打开应用。');
     }));
@@ -221,5 +240,8 @@ async function prepareOffline() {
     if(!busy)render();message('应用与 OCR 模型已完整缓存，可离线使用。请仍定期备份记录。');
   } catch {message('离线资源尚未准备完成；需要联网首次下载，未保证离线识别。',true);}
 }
+if('serviceWorker' in navigator)navigator.serviceWorker.addEventListener('controllerchange',()=>{
+  if(reloadForUpdate&&!busy)location.reload();
+});
 try {await refresh();prepareOffline();}catch(error){message(error.message,true);main.innerHTML='<section class="empty"><h1>无法打开本地数据库</h1><p>请检查浏览器隐私模式、存储权限和剩余空间。未将失败伪装为空报告库。</p></section>';}
 window.addEventListener('beforeunload',()=>{if(busy)releaseOCR();});

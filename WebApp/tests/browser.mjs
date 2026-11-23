@@ -151,12 +151,57 @@ try {
   });
   for(const [key,value] of Object.entries({water:41.2,protein:10.8,minerals:4.1,score:79}))
     assert.equal(independent.good.metrics[key]?.value,value,`Independent synthetic cell ${key}`);
-  assert.equal(independent.conflict.accepted,false);
+  assert.equal(independent.conflict.accepted,true);
+  assert.equal(independent.conflict.partial,true);
+  assert.equal(independent.conflict.current.kind,'partial');
   assert.equal(independent.conflict.metrics.fat,undefined);
   assert.ok(independent.conflict.issues.some(issue=>issue.includes('体脂肪独立位置存在矛盾')));
   assert.equal(independent.faint.metrics.score?.value,79,'Faint numeral excludes full-height paper border and smaller denominator');
   assert.equal(independent.competing.metrics.score,undefined,'Competing same-size score numerators are not guessed');
-  checks.push('Actual independent composition/score crop OCR; conflicting printed fat cannot enter a record');
+  checks.push('Actual independent OCR: conflicting fat excluded while independently verified partial fields are retained');
+  const recovery=await page.evaluate(async pixels=>{
+    const api=await import('./src/storage.js'),original=await api.snapshot();
+    const full=structuredClone(original.measurements[0]),beforeDigest=original.reports[0].digest;
+    const canvas=document.createElement('canvas');canvas.width=1280;canvas.height=1800;
+    const bitmap=await createImageBitmap(new Blob([new Uint8Array(pixels)],{type:'image/png'}));
+    const ctx=canvas.getContext('2d');ctx.drawImage(bitmap,0,0);bitmap.close();
+    ctx.fillStyle='#111';ctx.fillRect(5,5,2,2);
+    const image=await new Promise(resolve=>canvas.toBlob(resolve));
+    const part={...full,id:'partial-safe',kind:'partial',measuredAt:full.measuredAt-86400000,metrics:{
+      weight:{value:74.8,confidence:95,evidence:'composition-cell'},
+      protein:{value:10.8,confidence:95,evidence:'composition-cell'}}};
+    await api.saveScan(image,{accepted:true,partial:true,current:part,history:[],metrics:part.metrics,measuredAt:part.measuredAt,issues:['synthetic partial']},'partial-source');
+    const backup=await api.exportBackup();await api.validateBackup(backup);
+    await api.saveScan(image,{accepted:false,history:[],metrics:{},measuredAt:null,issues:['synthetic failed retry']},'ignored-id',true);
+    let state=await api.snapshot();
+    if(state.reports.find(r=>r.id==='partial-source').points[0].metrics.weight.confidence!==95)throw Error('Failed retry lost reliable record');
+    const upgrade={...full,measuredAt:part.measuredAt};upgrade.metrics.weight.confidence=80;
+    await api.saveScan(image,{accepted:true,current:upgrade,history:[],metrics:upgrade.metrics,measuredAt:upgrade.measuredAt,issues:[]},'ignored-id',true);
+    state=await api.snapshot();
+    const source=state.reports.find(r=>r.id==='partial-source');
+    if(source.status!=='saved'||source.points[0].metrics.weight.confidence!==95||source.digest!==await api.digest(image))throw Error('Upgrade changed source or lowered reliability');
+    const conflicting=structuredClone(upgrade);conflicting.metrics.weight.value=81;
+    let rejected=false;try{await api.saveScan(image,{accepted:true,current:conflicting,history:[],metrics:conflicting.metrics,measuredAt:conflicting.measuredAt,issues:[]},'ignored-id',true);}catch{rejected=true;}
+    if(!rejected||(await api.snapshot()).reports.find(r=>r.id==='partial-source').points[0].metrics.weight.value!==74.8)throw Error('Retry conflict overwritten');
+    await api.removeReport('partial-source');
+    if((await api.snapshot()).reports[0].digest!==beforeDigest)throw Error('Existing original changed');
+    await api.saveScan(image,{accepted:false,metrics:{},measuredAt:null,history:[],issues:['synthetic pending recovery']},'retry-ui-source');
+    return {imageDigest:await api.digest(image)};
+  },pixels);
+  await page.reload();await page.locator('[data-tab="reports"]').click();
+  await page.locator('[data-report="retry-ui-source"]').click();
+  await page.locator('[data-retry="retry-ui-source"]').click();
+  await page.waitForFunction(async()=>{
+    const {snapshot}=await import('./src/storage.js');return (await snapshot()).reports.find(r=>r.id==='retry-ui-source')?.status==='saved';
+  },null,{timeout:180000});
+  const retried=await page.evaluate(async()=>{
+    const {snapshot,removeReport}=await import('./src/storage.js');const s=await snapshot(),source=s.reports.find(r=>r.id==='retry-ui-source');
+    const result={digest:source.digest,reports:s.reports.length,measurements:s.measurements.length};
+    await removeReport('retry-ui-source');return result;
+  });
+  assert.equal(retried.digest,recovery.imageDigest);assert.equal(retried.reports,2);assert.equal(retried.measurements,1);
+  checks.push('Existing-photo retry UI, partial backup compatibility, failed/conflicting retry preservation and complete upgrade without duplication');
+  await page.reload();await page.waitForSelector('[data-tab="reports"]');
   await page.locator('#photo-input').setInputFiles(input);
   await page.waitForFunction(()=>document.querySelector('#notice').textContent.includes('没有重复新增'));
   assert.equal(await page.evaluate(async()=>{const {snapshot}=await import('./src/storage.js');return (await snapshot()).reports.length;}),1);
@@ -252,6 +297,9 @@ try {
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'Mobile horizontal overflow');
   checks.push('390 × 844 mobile viewport with explicitly synthetic screenshots');
   console.log(JSON.stringify({browser:await browser.version(),checks,passed:checks.length,externalRequests:unexpected.length,pageErrors:errors.length},null,2));
+} catch(error) {
+  console.error(error);
+  throw error;
 } finally {
   try {await page.evaluate(async()=>{const {eraseAll}=await import('./src/storage.js');await eraseAll();});}
   finally {try {await context.close();}finally {await browser.close();}}

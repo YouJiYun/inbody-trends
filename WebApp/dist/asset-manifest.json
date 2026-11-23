@@ -1,5 +1,5 @@
 {
-  "version": "0972684bfab5ab79",
+  "version": "25469b0ff14318f1",
   "assets": [
     {
       "path": "icon-192.png",
@@ -38,13 +38,13 @@
     },
     {
       "path": "src/app.js",
-      "bytes": 20052,
-      "sha256": "2ab12d06204c8186693c11ffa20a4f41c6c02aaf3dae38a15147ad80d70fcbe7"
+      "bytes": 22243,
+      "sha256": "9ae49a0500e47f44f3b829c3c8d9144417e474290e7d6a936ba1083c44710d71"
     },
     {
       "path": "src/domain.js",
-      "bytes": 28833,
-      "sha256": "2beaeea82ff25097f5bd4b6f503659817c04719a2412adb303f6d99aeb94bbdd"
+      "bytes": 29624,
+      "sha256": "14f404027823669d16f130cb732380ee0dbe584c7786c23d7e0c610e912e454b"
     },
     {
       "path": "src/ocr.js",
@@ -58,13 +58,13 @@
     },
     {
       "path": "src/storage.js",
-      "bytes": 12399,
-      "sha256": "c47128c5bf728a48766fba07c299b49a5ff922e1e4b314df77b89765e49f057b"
+      "bytes": 13004,
+      "sha256": "f9d73dc3b1f1fd57ace0c6c5f153c225ffa682924e746d555ce814c9c5848c69"
     },
     {
       "path": "src/template.js",
-      "bytes": 27209,
-      "sha256": "018272188e2fce1c541d64f1a59cab42e0b2a1c274079f80e195b4090ac1b319"
+      "bytes": 28426,
+      "sha256": "36b2776ddaa94f39282bf13841d70c995312c00744e3abf150002153774b7129"
     },
     {
       "path": "style.css",

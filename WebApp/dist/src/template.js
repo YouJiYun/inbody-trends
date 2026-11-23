@@ -204,6 +204,16 @@ export function verifiedTimestamp(locator,confirmed,verified) {
     verified.some(item=>item.confidence>=70&&item.date===values[0])?values[0]:null;
   return {date,conflict};
 }
+export function independentPartial(current,independent,issues,identityVerified) {
+  if(!identityVerified||current.measuredAt===null||issues.some(issue=>issue.includes('独立日期时间存在矛盾')))return null;
+  const trustworthy=Object.fromEntries(Object.entries(independent).filter(([key])=>current.metrics[key]&&
+    !issues.some(issue=>issue===`${definitions.find(def=>def.id===key).name}独立位置存在矛盾`||
+      issue===`${definitions.find(def=>def.id===key).name}局部裁图存在矛盾`)));
+  if(Object.keys(trustworthy).length<2)return null;
+  const point={...current,kind:'partial',metrics:trustworthy};
+  validateMeasurement(point);
+  return point;
+}
 export async function recognizeTemplate(blob,sourceID,legacyDoc,onProgress=()=>{}) {
   const decoded=await imageCanvas(blob),prepared=await prepareDocument(decoded),canvas=prepared.canvas;
   let worker;
@@ -266,7 +276,7 @@ export async function recognizeTemplate(blob,sourceID,legacyDoc,onProgress=()=>{
         return values.length===1?{value:values[0],confidence:Math.min(...observations.map(token=>token.confidence))}:null;
       } finally {image.width=1;image.height=1;}
     }
-    const metrics={},issues=[],notices=[],{group,gap,origin,cell}=layout;
+    const metrics={},independent={},issues=[],notices=[],{group,gap,origin,cell}=layout;
     for(const [index,key] of ['weight','muscle','fat','bmi','pbf'].entries()) {
       onProgress({status:`本机模板字段复核 ${index+1}/6`,progress:.1+index*.12});
       const row=group[index],image=crop(canvas,{x:origin-cell*1.5,y:row.y-gap*.8,
@@ -306,7 +316,11 @@ export async function recognizeTemplate(blob,sourceID,legacyDoc,onProgress=()=>{
     let compositionCount=0;
     for(const [index,key] of ['water','protein','minerals','fat','weight'].entries())if(bodyCells[index]) {
       const candidate=await cellNumber(bodyCells[index],key);
-      if(candidate){compositionCount++;reconcileMetric(metrics,key,candidate,issues);}
+      if(candidate){
+        compositionCount++;candidate.evidence='composition-cell';
+        reconcileMetric(metrics,key,candidate,issues);
+        if(metrics[key]===candidate)independent[key]=candidate;
+      }
     }
     notices.push(`人体成分结果列定位 ${bodyCells.length}/5 格，可信 ${compositionCount}/5 格`);
     if(anchors.score&&anchors.control) {
@@ -318,7 +332,7 @@ export async function recognizeTemplate(blob,sourceID,legacyDoc,onProgress=()=>{
           const tall=numeratorBoxes(image);
           if(tall.length===1) {
             const local=tall[0],candidate=await cellNumber({x:box.x+local.x,y:box.y+local.y,width:local.width,height:local.height},'score');
-            if(candidate)reconcileMetric(metrics,'score',candidate,issues);
+            if(candidate){candidate.evidence='score-numerator';reconcileMetric(metrics,'score',candidate,issues);independent.score=candidate;}
           }
         }finally {image.width=1;image.height=1;}
       }
@@ -404,7 +418,13 @@ export async function recognizeTemplate(blob,sourceID,legacyDoc,onProgress=()=>{
       try {validateMeasurement(current);accepted=true;}catch(error){issues.push(`模板核心校验失败：${error.message}`);}
     }
     const missing=definitions.filter(def=>!metrics[def.id]).map(def=>def.name);
-    return {accepted,measuredAt,metrics,history:accepted?history:[],current:accepted?current:null,
+    let partial=null;
+    if(!accepted) {
+      try {partial=independentPartial(current,independent,issues,!!(anchors.composition&&corroborated));}
+      catch(error){notices.push(`部分记录未保存：${error.message}`);}
+    }
+    return {accepted:accepted||!!partial,partial:!!partial,measuredAt,metrics:partial?partial.metrics:metrics,
+      history:accepted?history:[],current:accepted?current:partial,
       issues:[...issues,...notices,'采用模板独立位置复核；仅在两张开发样例上验证，其他版式可能不支持',
         '仅保存通过复核的字段；分段、阻抗及其他历史列未导入',`未可靠识别：${missing.join('、')}`]};
   } finally {if(worker)await worker.terminate();canvas.width=1;canvas.height=1;if(decoded!==canvas){decoded.width=1;decoded.height=1;}}

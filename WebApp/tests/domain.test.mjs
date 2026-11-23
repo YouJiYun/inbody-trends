@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseDate, parseReport, mergeMeasurements, validateMeasurement, documentFromTSV, numberTokens } from '../src/domain.js';
-import { locateTemplatePixels,equalGrid,reconcileMetric,compositionCells,verifiedTimestamp } from '../src/template.js';
+import { locateTemplatePixels,equalGrid,reconcileMetric,compositionCells,verifiedTimestamp,independentPartial } from '../src/template.js';
 const date=parseDate('2032.04.16 08:35');
 const word=(text,x,y,width=.04,height=.015,confidence=95)=>({text,x,y,width,height,confidence});
 const line=words=>({words,text:words.map(w=>w.text).join(' '),x:Math.min(...words.map(w=>w.x)),
@@ -64,6 +64,36 @@ test('backup measurement checks reject NaN, unknown metrics and incomplete full 
   const full=parseReport(fixture(),'b').current;validateMeasurement(full);
   const wrong=structuredClone(full);wrong.metrics.weight.value=NaN;assert.throws(()=>validateMeasurement(wrong));
   wrong.metrics.weight.value=74.8;wrong.metrics.fake={value:3,confidence:95};assert.throws(()=>validateMeasurement(wrong));
+});
+test('partial records require independent evidence and preserve reliable values across complete upgrades',()=>{
+  const partial={id:'partial',kind:'partial',measuredAt:date,sourceIDs:['s'],metrics:{
+    weight:{value:74.8,confidence:95,evidence:'composition-cell'},
+    protein:{value:10.8,confidence:90,evidence:'composition-cell'}}};
+  validateMeasurement(partial);
+  const noEvidence=structuredClone(partial);delete noEvidence.metrics.weight.evidence;assert.throws(()=>validateMeasurement(noEvidence));
+  const weak=structuredClone(partial);weak.metrics.protein.confidence=69;assert.throws(()=>validateMeasurement(weak));
+  const single=structuredClone(partial);delete single.metrics.protein;assert.throws(()=>validateMeasurement(single));
+  const full=parseReport(fixture(),'s').current;full.metrics.weight.confidence=80;
+  const upgraded=mergeMeasurements([partial],[full]);
+  assert.equal(upgraded.length,1);assert.equal(upgraded[0].kind,'complete');assert.equal(upgraded[0].metrics.weight.confidence,95);
+  const conflict=structuredClone(full);conflict.metrics.weight.value=80;
+  assert.throws(()=>mergeMeasurements([partial],[conflict]),/矛盾/);
+});
+test('screenshot crop mismatch symptoms retain only independent fields; identity and trusted conflicts still veto',()=>{
+  const independent={
+    weight:{value:74.8,confidence:92,evidence:'composition-cell'},
+    fat:{value:18.7,confidence:94,evidence:'composition-cell'},
+    score:{value:79,confidence:95,evidence:'score-numerator'}};
+  const current={id:'screenshot',kind:'complete',measuredAt:date,sourceIDs:['s'],metrics:{...independent,muscle:{value:29.6,confidence:95}}};
+  const issues=['体重整行与字段裁图未一致','体重局部裁图重复复核未一致','体脂肪整行与字段裁图未一致'];
+  const partial=independentPartial(current,independent,issues,true);
+  assert.deepEqual(Object.keys(partial.metrics),['weight','fat','score']);assert.equal(partial.metrics.muscle,undefined);
+  assert.equal(independentPartial(current,independent,issues,false),null);
+  assert.equal(independentPartial({...current,measuredAt:null},independent,issues,true),null);
+  assert.equal(independentPartial(current,independent,[...issues,'独立日期时间存在矛盾'],true),null);
+  const conflict=independentPartial(current,independent,[...issues,'体重独立位置存在矛盾'],true);
+  assert.equal(conflict.metrics.weight,undefined);assert.deepEqual(Object.keys(conflict.metrics),['fat','score']);
+  assert.equal(independentPartial(current,independent,[...issues,'体重独立位置存在矛盾','体脂肪局部裁图存在矛盾'],true),null);
 });
 test('TSV word geometry is mapped through general crop coordinates',()=>{
   const tsv='level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext\n5\t1\t1\t1\t1\t1\t10\t20\t30\t10\t95\t24.4';

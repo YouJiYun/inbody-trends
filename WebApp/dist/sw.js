@@ -1,5 +1,5 @@
 const PREFIX=`inbody-shell-${encodeURIComponent(self.registration.scope)}-`;
-const CACHE=`${PREFIX}0972684bfab5ab79`;
+const CACHE=`${PREFIX}25469b0ff14318f1`;
 let allowed;
 async function manifest(cache) {
   const response=await cache.match(new URL('asset-manifest.json',self.registration.scope));

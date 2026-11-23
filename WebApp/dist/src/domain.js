@@ -408,28 +408,31 @@ export function mergeMeasurements(existing,incoming) {
     const previous=result.find(point=>point.measuredAt===item.measuredAt);
     if(!previous){result.push(structuredClone(item));continue;}
     const shared=Object.keys(previous.metrics).filter(key=>item.metrics[key]);
-    if(previous.kind===item.kind&&shared.some(key=>Math.abs(previous.metrics[key].value-item.metrics[key].value)>0.051)) {
+    if((previous.kind===item.kind||previous.kind!=='history'&&item.kind!=='history')&&shared.some(key=>Math.abs(previous.metrics[key].value-item.metrics[key].value)>0.051)) {
       throw new Error('同一测量时间存在矛盾的报告或历史摘要，未覆盖原记录');
     }
     previous.sourceIDs=[...new Set([...previous.sourceIDs,...item.sourceIDs])];
-    if(item.kind==='complete'||previous.kind!=='complete') {
-      previous.metrics={...previous.metrics,...structuredClone(item.metrics)};
+    if(item.kind==='complete'||previous.kind!=='complete'&&item.kind!=='history'||previous.kind==='history') {
+      for(const [key,metric] of Object.entries(item.metrics))if(!previous.metrics[key]||metric.confidence>=previous.metrics[key].confidence)
+        previous.metrics[key]=structuredClone(metric);
       if(item.kind==='complete')previous.kind='complete';
+      else if(item.kind==='partial'&&previous.kind==='history')previous.kind='partial';
     }
   }
   return result.sort((a,b)=>a.measuredAt-b.measuredAt);
 }
 function consistencyIssues(metrics) {
   const issues=[],get=key=>metrics[key].value;
-  if(get('muscle')+get('fat')>=get('weight')||Math.abs(get('fat')/get('weight')*100-get('pbf'))>0.3)issues.push('脂肪重量与体脂率不一致');
-  if(['water','protein','minerals'].every(key=>metrics[key])&&
+  if(['muscle','fat','weight'].every(key=>metrics[key])&&get('muscle')+get('fat')>=get('weight')||
+    ['fat','weight','pbf'].every(key=>metrics[key])&&Math.abs(get('fat')/get('weight')*100-get('pbf'))>0.3)issues.push('脂肪重量与体脂率不一致');
+  if(['water','protein','minerals','fat','weight'].every(key=>metrics[key])&&
     Math.abs(get('water')+get('protein')+get('minerals')+get('fat')-get('weight'))>0.5)issues.push('人体成分总和与体重不一致');
-  if(metrics.ffm&&Math.abs(get('ffm')+get('fat')-get('weight'))>0.3)issues.push('去脂体重与体重不一致');
+  if(metrics.ffm&&metrics.fat&&metrics.weight&&Math.abs(get('ffm')+get('fat')-get('weight'))>0.3)issues.push('去脂体重与体重不一致');
   return issues;
 }
 export function validateMeasurement(item) {
   if(!item||typeof item.id!=='string'||!Number.isInteger(item.measuredAt)||parseDate(printDate(item.measuredAt))!==item.measuredAt||
-    !['complete','history'].includes(item.kind)||!Array.isArray(item.sourceIDs)||!item.sourceIDs.length||
+    !['complete','partial','history'].includes(item.kind)||!Array.isArray(item.sourceIDs)||!item.sourceIDs.length||
     item.sourceIDs.some(id=>typeof id!=='string'||!id.length||id.length>128)||new Set(item.sourceIDs).size!==item.sourceIDs.length||
     !item.metrics||typeof item.metrics!=='object'||Array.isArray(item.metrics))throw new Error('备份测量结构无效');
   for(const [key,metric] of Object.entries(item.metrics)) {
@@ -439,6 +442,9 @@ export function validateMeasurement(item) {
   }
   if(item.kind==='complete'&&coreKeys.some(key=>!item.metrics[key]))throw new Error('备份完整记录缺少核心指标');
   if(item.kind==='complete'&&consistencyIssues(item.metrics).length)throw new Error('备份完整记录的人体成分矛盾');
+  if(item.kind==='partial'&&(Object.keys(item.metrics).length<2||consistencyIssues(item.metrics).length||
+    Object.values(item.metrics).some(metric=>metric.confidence<70||!['composition-cell','score-numerator'].includes(metric.evidence))))
+    throw new Error('部分记录缺少独立复核来源或存在矛盾');
   if(item.kind==='history'&&(Object.keys(item.metrics).length!==3||['weight','muscle','pbf'].some(key=>!item.metrics[key])||
     item.metrics.muscle.value>=item.metrics.weight.value))throw new Error('备份历史摘要的指标不完整或矛盾');
 }

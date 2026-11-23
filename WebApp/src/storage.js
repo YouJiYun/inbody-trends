@@ -74,19 +74,26 @@ function rebuild(reports) {
   return mergeMeasurements([],reports.flatMap(report=>report.points));
 }
 const remapPoints=(points,id)=>points.map(point=>({...point,sourceIDs:[id]}));
-export async function saveScan(blob,parsed,id) {
+export async function saveScan(blob,parsed,id,retry=false) {
   const previous=await snapshot(),sha256=await digest(blob);
   const existing=previous.reports.find(report=>report.digest===sha256);
-  if(existing?.status==='saved')return {duplicate:true};
+  if(existing?.status==='saved'&&!retry)return {duplicate:true};
   if(!existing&&previous.reports.some(report=>report.id===id))throw new Error('来源标识冲突，原记录未覆盖');
   validateMetrics(parsed.metrics);
-  const reportID=existing?.id??id,points=parsed.accepted?remapPoints([...parsed.history,parsed.current],reportID):[];
+  const reportID=existing?.id??id;
+  let points=parsed.accepted?remapPoints([...parsed.history,parsed.current],reportID):[];
   for(const point of points)validateMeasurement(point);
+  if(existing?.points.length) {
+    if(parsed.accepted&&existing.measuredAt!==parsed.measuredAt)throw new Error('重新识别的日期与原记录矛盾，原图和原记录保持不变');
+    points=mergeMeasurements(existing.points,points);
+  }
+  const current=points.find(point=>point.kind!=='history');
   const report={id:reportID,digest:sha256,image:await validatePhoto(blob),importedAt:existing?.importedAt??Date.now(),
-    status:parsed.accepted?'saved':'pending',issues:parsed.issues,candidates:parsed.metrics,measuredAt:parsed.measuredAt,points};
+    status:current?(current.kind==='partial'?'partial':'saved'):'pending',issues:parsed.issues,
+    candidates:current?.metrics??parsed.metrics,measuredAt:current?.measuredAt??parsed.measuredAt,points};
   const reports=[...previous.reports.filter(report=>report.id!==reportID),report];
   await commit(previous.revision,{reports,measurements:rebuild(reports)});
-  return {duplicate:false,retried:!!existing};
+  return {duplicate:false,retried:!!existing,status:report.status};
 }
 export async function removeReport(id) {
   const previous=await snapshot();
@@ -130,7 +137,7 @@ export async function validateBackup(blob) {
   const ids=new Set(),digests=new Set(),reports=[];
   for(const source of backup.payload.reports) {
     if(!source||typeof source.id!=='string'||!source.id.length||source.id.length>128||ids.has(source.id)||digests.has(source.digest)||!/^[a-f0-9]{64}$/.test(source.digest)||
-      !['saved','pending'].includes(source.status)||!Number.isFinite(source.importedAt)||
+      !['saved','partial','pending'].includes(source.status)||!Number.isFinite(source.importedAt)||
       !Array.isArray(source.issues)||source.issues.some(issue=>typeof issue!=='string'||issue.length>4096)||
       !source.image||typeof source.image.base64!=='string'||source.image.base64.length>40*1024*1024||
       typeof source.image.mime!=='string'||!Array.isArray(source.points)||source.points.length>10000)throw new Error('备份报告或照片结构无效');
@@ -144,8 +151,9 @@ export async function validateBackup(blob) {
       validateMeasurement(point);
       if(point.sourceIDs.length!==1||point.sourceIDs[0]!==source.id)throw new Error('备份来源贡献关系无效');
     }
-    const full=source.points.filter(point=>point.kind==='complete');
-    if(source.status==='saved'?(full.length!==1||full[0].measuredAt!==source.measuredAt||!sameMetrics(full[0].metrics,source.candidates)):
+    const full=source.points.filter(point=>point.kind!=='history');
+    if(source.status!=='pending'?(full.length!==1||full[0].kind!==(source.status==='saved'?'complete':'partial')||
+      full[0].measuredAt!==source.measuredAt||!sameMetrics(full[0].metrics,source.candidates)):
       source.points.length!==0)throw new Error('备份保存状态与指标来源不一致');
     if(source.points.some(point=>point.kind==='history'&&point.measuredAt>=source.measuredAt))throw new Error('备份历史时间无效');
     reports.push({id:source.id,digest:source.digest,image,importedAt:source.importedAt,status:source.status,
@@ -178,11 +186,12 @@ export async function restoreBackup(blob) {
     if(sameID&&sameID.digest!==source.digest)throw new Error('备份来源标识与原记录冲突，原库未修改');
     const same=reports.find(report=>report.digest===source.digest);
     if(same) {
-      if(same.status==='saved'&&source.status==='saved'&&same.measuredAt!==source.measuredAt)throw new Error('同一照片的日期存在矛盾，原库未修改');
-      if(source.status==='saved') {
+      if(same.status!=='pending'&&source.status!=='pending'&&same.measuredAt!==source.measuredAt)throw new Error('同一照片的日期存在矛盾，原库未修改');
+      if(source.status!=='pending') {
         const points=mergeMeasurements(same.points,remapPoints(source.points,same.id));
+        const current=points.find(point=>point.kind!=='history');
         reports[reports.indexOf(same)]={...source,id:same.id,importedAt:same.importedAt,points,
-          candidates:points.find(point=>point.kind==='complete').metrics};
+          status:current.kind==='complete'?'saved':'partial',candidates:current.metrics};
       }
     } else reports.push(source);
   }
