@@ -1,0 +1,135 @@
+{
+  "version": "0972684bfab5ab79",
+  "assets": [
+    {
+      "path": "icon-192.png",
+      "bytes": 981,
+      "sha256": "d81adaf3440043457e6905371bec2f2fcd79fc8090acc0da74136633a3ec5e02"
+    },
+    {
+      "path": "icon-512.png",
+      "bytes": 3469,
+      "sha256": "af49a3dcbeea8705ee8b1ba50a890c86925f2e1dc06eac91a8c863c8cfc7d186"
+    },
+    {
+      "path": "index.html",
+      "bytes": 2021,
+      "sha256": "ba46d4ff7239fa8def10343406a8b60f1f683e3852697ac7781b41fc7b7c32e8"
+    },
+    {
+      "path": "licenses/notices.md",
+      "bytes": 606,
+      "sha256": "6e6c71ea903415c43cf588c052c5f59028c3b07372c64d54dd9f0bb051fa6d34"
+    },
+    {
+      "path": "licenses/tesseract.js-core.txt",
+      "bytes": 11358,
+      "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08"
+    },
+    {
+      "path": "licenses/tesseract.js.txt",
+      "bytes": 11357,
+      "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"
+    },
+    {
+      "path": "manifest.webmanifest",
+      "bytes": 439,
+      "sha256": "8ff28c4285e41207a1180b4d5e1aad4f301c9a28ef142806be0a2e43af18310c"
+    },
+    {
+      "path": "src/app.js",
+      "bytes": 20052,
+      "sha256": "2ab12d06204c8186693c11ffa20a4f41c6c02aaf3dae38a15147ad80d70fcbe7"
+    },
+    {
+      "path": "src/domain.js",
+      "bytes": 28833,
+      "sha256": "2beaeea82ff25097f5bd4b6f503659817c04719a2412adb303f6d99aeb94bbdd"
+    },
+    {
+      "path": "src/ocr.js",
+      "bytes": 8616,
+      "sha256": "cb226a7b8eadf3ef5f0b557c5e23d0df220ab5c4978b8a2d6d5f219143417ed5"
+    },
+    {
+      "path": "src/preprocess.js",
+      "bytes": 6479,
+      "sha256": "87d1540bb92cf8bff248021bf79c66e8f4b477edc8f25b7f201f88552b7c7a35"
+    },
+    {
+      "path": "src/storage.js",
+      "bytes": 12399,
+      "sha256": "c47128c5bf728a48766fba07c299b49a5ff922e1e4b314df77b89765e49f057b"
+    },
+    {
+      "path": "src/template.js",
+      "bytes": 27209,
+      "sha256": "018272188e2fce1c541d64f1a59cab42e0b2a1c274079f80e195b4090ac1b319"
+    },
+    {
+      "path": "style.css",
+      "bytes": 10081,
+      "sha256": "fe4184766dfb0f42438ddda3e01673441d4b1f9b8823a374d38169d6406d0519"
+    },
+    {
+      "path": "vendor/core/tesseract-core-lstm.wasm",
+      "bytes": 2871085,
+      "sha256": "220e2e87551edccb85519796a170469f8ab2a8055216789e3b8b1ada18b7bc2b"
+    },
+    {
+      "path": "vendor/core/tesseract-core-lstm.wasm.js",
+      "bytes": 3954181,
+      "sha256": "775a35df6f2ae100e02609443e6bd5cafcd07983dd6175454ca4a432a7730687"
+    },
+    {
+      "path": "vendor/core/tesseract-core-simd-lstm.wasm",
+      "bytes": 2871377,
+      "sha256": "187d76742dfc0d8929f0b49a619f145bb6370730776c7bd0d3e20c6b2098808d"
+    },
+    {
+      "path": "vendor/core/tesseract-core-simd-lstm.wasm.js",
+      "bytes": 3954569,
+      "sha256": "9d7c43fb206dc9f48475228b46bf35f888fa9e6259da2e67d5a75c77049f2dc7"
+    },
+    {
+      "path": "vendor/core/tesseract-core-simd.wasm",
+      "bytes": 3469078,
+      "sha256": "ca11ee92a02023e4f5083eefd0966fb83b297416da54e997b9f6ce445f719c9b"
+    },
+    {
+      "path": "vendor/core/tesseract-core-simd.wasm.js",
+      "bytes": 4751193,
+      "sha256": "3b0678c47a8dea6abb931b214171c08b742a5b9a9fcbbb1a028a08d5de6e9d4c"
+    },
+    {
+      "path": "vendor/core/tesseract-core.wasm",
+      "bytes": 3468788,
+      "sha256": "740f7e466a2f026e1f1e54a2e0d9957e386d8166110d1290224abd3d08986106"
+    },
+    {
+      "path": "vendor/core/tesseract-core.wasm.js",
+      "bytes": 4750805,
+      "sha256": "e66872f6a76f5ad414d73d21512245df0de3060ad4871a97c47efceaab27b955"
+    },
+    {
+      "path": "vendor/lang/chi_sim.traineddata.gz",
+      "bytes": 1718768,
+      "sha256": "b8a23f10c7de500891eb458a8adc9cc58ab7f242f08b7d149f5e9aea4ad5db7c"
+    },
+    {
+      "path": "vendor/lang/eng.traineddata.gz",
+      "bytes": 2952873,
+      "sha256": "45b4cb346724ac1774f1c36f42f182b887bcdb28ebe63e6fff90ac41f3fcff91"
+    },
+    {
+      "path": "vendor/tesseract.min.js",
+      "bytes": 62961,
+      "sha256": "10fff78484067759c43028a02a72d76d0b90eb17302bb23b58a9ec5410bc928b"
+    },
+    {
+      "path": "vendor/worker.min.js",
+      "bytes": 111162,
+      "sha256": "38645599043239c0eb6db08a6504a92dcdc292200535f3e9339cd77c4443b842"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#087f79">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="身体记录">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <link rel="stylesheet" href="./style.css">
+  <title>身体记录 · 只在你的设备</title>
+</head>
+<body>
+  <div class="app">
+    <header class="top"><a class="brand" href="./"><span class="brand-mark">↗</span>身体记录</a><button id="settings" class="icon-button" aria-label="本地存储与备份">☷</button></header>
+    <div id="notice" role="status" aria-live="polite"></div>
+    <main id="main" tabindex="-1"></main>
+    <nav aria-label="主导航" class="tabs">
+      <button data-tab="home" class="active"><span>◫</span>概览</button>
+      <button data-tab="scan"><span>⊕</span>扫描</button>
+      <button data-tab="trends"><span>↗</span>趋势</button>
+      <button data-tab="reports"><span>▤</span>报告</button>
+    </nav>
+  </div>
+  <input id="camera-input" type="file" accept="image/*" capture="environment" hidden>
+  <input id="photo-input" type="file" accept="image/*" hidden>
+  <input id="backup-input" type="file" accept=".json,application/json" hidden>
+  <dialog id="detail"><div id="detail-content"></div><button id="close-detail" class="secondary">关闭</button></dialog>
+  <script src="./vendor/tesseract.min.js"></script>
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
